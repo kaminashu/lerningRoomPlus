@@ -1,5 +1,7 @@
 package com.example.d2android100.presentation
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -8,10 +10,13 @@ import com.example.d2android100.domain.AddShopItemUseCase
 import com.example.d2android100.domain.EditShopItemUseCase
 import com.example.d2android100.domain.GetShopItemByIdUseCase
 import com.example.d2android100.domain.ShopItem
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
-class ShopItemViewModel : ViewModel() {
+class ShopItemViewModel(application: Application) : AndroidViewModel(application) {
 
-    val repository = ShopListItemRepositoryImpl
+    val repository = ShopListItemRepositoryImpl(application)
 
     val addShopItemUseCase = AddShopItemUseCase(repository)
     val editShopItemUseCase = EditShopItemUseCase(repository)
@@ -36,14 +41,16 @@ class ShopItemViewModel : ViewModel() {
     private val _shouldCloseScreen = MutableLiveData<Unit>()
     val shouldCloseScreen: LiveData<Unit>
         get() = _shouldCloseScreen
-
+    val myScope= CoroutineScope(Dispatchers.IO)
     public fun addShopItem(inputName: String?, inputCount: String?) {
         val name = parseString(inputName)
         val count = parseCount(inputCount)
         val validateInput = validateInput(name, count)
         if (validateInput) {
-            val item = ShopItem(name, count, true)
-            addShopItemUseCase.addShopItem(item)
+            myScope.launch {
+                val item = ShopItem(name, count, true)
+                addShopItemUseCase.addShopItem(item)
+            }
             finishWork()
         }
     }
@@ -55,16 +62,20 @@ class ShopItemViewModel : ViewModel() {
         val validateInput = validateInput(name, count)
         if (validateInput) {
             _shopItem.value?.let {
-                val item = it.copy(item_name = name, count = count)
-                editShopItemUseCase.editShopItem(item)
+                myScope.launch {
+                    val item = it.copy(item_name = name, count = count)
+                    editShopItemUseCase.editShopItem(item)
+                }
             }
                 finishWork()
         }
     }
 
     public fun getShopById(id: Int) {
-        val item = getShopItemByIdUseCase.getShopItemById(id)
-        _shopItem.value = item
+        myScope.launch {
+            val item = getShopItemByIdUseCase.getShopItemById(id)
+            _shopItem.value = item
+        }
     }
 
     private fun parseString(inputName: String?): String {
